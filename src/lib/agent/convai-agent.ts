@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { demoLimits, demoMode } from "../demo/limits";
 import { SYSTEM_PROMPT } from "./prompt";
 import { TOOL_DEFS } from "./tools";
 
@@ -7,6 +8,11 @@ import { TOOL_DEFS } from "./tools";
  * Polty as an ElevenLabs Agent: always-on speech-to-speech, with every GHOST tool registered as a
  * *client* tool (executed in the browser by the same executor the text agent uses).
  * The agent is created once and its id cached in .ghost/convai.json (or set ELEVENLABS_AGENT_ID).
+ * Without a cache (e.g. a fresh container after a redeploy) an existing agent with the same name
+ * is reused instead of creating another one.
+ *
+ * The public demo (POLTY_PUBLIC_DEMO=1) uses a separately named agent whose conversations
+ * ElevenLabs itself ends after DEMO_LIVE_MAX_SECONDS (+15 s; the browser ends them politely first).
  */
 const API = "https://api.elevenlabs.io/v1/convai";
 const CACHE = path.join(process.cwd(), ".ghost", "convai.json");
@@ -52,10 +58,13 @@ const VOICE_PROMPT = `${SYSTEM_PROMPT.replace(/- Begin every reply with exactly 
 # Live voice mode
 You are in a live, always-on voice conversation. Keep turns short and natural; it's fine to say a few words ("One sec…") before calling tools. Tool parameters described as "JSON object as a string" must be passed as a JSON-encoded string. Results that are images are shown to the user on the canvas; you receive a text summary of them.`;
 
+const agentName = () => (demoMode() ? "Polty · GHOST (public demo)" : "Polty · GHOST");
+
 function body() {
   return {
-    name: "Polty · GHOST",
+    name: agentName(),
     conversation_config: {
+      ...(demoMode() ? { conversation: { max_duration_seconds: demoLimits().liveMaxSeconds + 15 } } : {}),
       agent: {
         first_message: "Hi, I'm Polty! What can I do for you?",
         language: "en",
@@ -85,25 +94,42 @@ async function api(pathname: string, init: RequestInit) {
 let ensuring: Promise<string> | null = null;
 
 export function ensureAgent(): Promise<string> {
-  if (process.env.ELEVENLABS_AGENT_ID) return Promise.resolve(process.env.ELEVENLABS_AGENT_ID);
+  // A fixed agent id skips our config, so the demo ignores it to keep its session cap in force.
+  if (process.env.ELEVENLABS_AGENT_ID && !demoMode()) return Promise.resolve(process.env.ELEVENLABS_AGENT_ID);
   ensuring ??= (async () => {
-    let cached: { agent_id?: string; version?: number } = {};
+    const name = agentName();
+    const limit = demoMode() ? demoLimits().liveMaxSeconds : null;
+    let cached: { agent_id?: string; version?: number; name?: string; limit?: number | null } = {};
     try {
       cached = JSON.parse(await readFile(CACHE, "utf8"));
     } catch {
       /* first run */
     }
+    // Only reuse a cached agent made with the same name and session cap (demo vs local differ).
+    if (cached.name !== name || (cached.limit ?? null) !== limit) cached = {};
     if (cached.agent_id && cached.version === VERSION) return cached.agent_id;
-    let agentId = cached.agent_id;
+    let agentId = cached.agent_id ?? (await findAgent(name));
     if (agentId) await api(`/agents/${agentId}`, { method: "PATCH", body: JSON.stringify(body()) });
     else agentId = (await api(`/agents/create`, { method: "POST", body: JSON.stringify(body()) })).agent_id as string;
     await mkdir(path.dirname(CACHE), { recursive: true });
-    await writeFile(CACHE, JSON.stringify({ agent_id: agentId, version: VERSION }));
+    await writeFile(CACHE, JSON.stringify({ agent_id: agentId, version: VERSION, name, limit }));
     return agentId!;
   })().finally(() => {
     ensuring = null;
   });
   return ensuring;
+}
+
+/** An existing agent with exactly this name, if there is one (avoids duplicates after redeploys). */
+async function findAgent(name: string): Promise<string | undefined> {
+  try {
+    const j = (await api(`/agents?search=${encodeURIComponent(name)}&page_size=100`, { method: "GET" })) as {
+      agents?: { agent_id: string; name: string; archived?: boolean }[];
+    };
+    return j.agents?.find((a) => a.name === name && !a.archived)?.agent_id;
+  } catch {
+    return undefined; // listing is a convenience; creating a new agent still works
+  }
 }
 
 export async function conversationToken(): Promise<string> {

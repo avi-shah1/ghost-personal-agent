@@ -46,6 +46,7 @@ class LiveSession {
   private raf = 0;
   private abort: AbortController | null = null;
   private asstId: string | null = null;
+  private timeLimit: ReturnType<typeof setTimeout> | null = null;
   starting = false;
 
   get active() {
@@ -95,6 +96,15 @@ class LiveSession {
       this.starting = false;
       S().set({ activity: "listening", caption: { who: "polty", text: "I'm listening — just talk.", interim: true } });
       this.meter();
+      // Public demo: sessions are capped (ElevenLabs enforces it too, a few seconds later).
+      const max = Number(j.max_seconds);
+      if (max > 0) {
+        this.timeLimit = setTimeout(() => {
+          void this.stop().then(() =>
+            S().set({ error: `Live voice on the public demo lasts up to ${Math.round(max / 60) || 1} min per session. Tap the mic to start another.` }),
+          );
+        }, max * 1000);
+      }
       return true;
     } catch (e) {
       this.starting = false;
@@ -117,6 +127,8 @@ class LiveSession {
   }
 
   private cleanup() {
+    if (this.timeLimit) clearTimeout(this.timeLimit);
+    this.timeLimit = null;
     cancelAnimationFrame(this.raf);
     this.conv = null;
     this.starting = false;

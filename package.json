@@ -8,7 +8,7 @@
     "start": "NODE_ENV=production tsx server.ts",
     "lint": "eslint",
     "coord:smoke": "tsx scripts/coord-smoke.ts",
-    "demo:test": "tsx scripts/demo-limits-test.ts",
+    "demo:test": "tsx scripts/demo-limits-test.ts && tsx scripts/convai-agent-test.ts",
     "devices:memory-test": "tsx scripts/device-memory-test.ts",
     "coord:fake-connector": "tsx scripts/coord-fake-connector.ts",
     "mastra:dev": "GHOST_DATA_DIR=${GHOST_DATA_DIR:-$PWD/.ghost} GHOST_COORDINATOR_URL=${GHOST_COORDINATOR_URL:-http://127.0.0.1:3000} mastra dev --dir src/mastra",

@@ -5,14 +5,16 @@
  *   - /api/agent always uses the Fast brain (Haiku) with a smaller output cap,
  *   - each visitor (by IP) gets a limited number of model turns per hour,
  *   - the whole site gets a daily turn budget, as a backstop against IP rotation,
- *   - the ElevenLabs voice routes get their own per-visitor and daily limits.
+ *   - the ElevenLabs voice routes get their own per-visitor and daily limits,
+ *   - Live voice (the always-listening ElevenLabs agent, billed per minute) gets a small number of
+ *     sessions per visitor and per day, and each session is cut off after a few minutes.
  *
  * Counters live in this server process's memory: right for a single instance, and they reset on
- * restart. The provider-side spend limit (set in the Anthropic console) stays the real hard cap.
- * One "turn" is one model call; a single question can take several turns when Polty uses tools.
+ * restart. The provider-side caps (Anthropic workspace spend limit, ElevenLabs plan credits) stay
+ * the real hard limits. One "turn" is one model call; a question can take several when Polty uses tools.
  */
 
-export type LimitKind = "agent" | "voice";
+export type LimitKind = "agent" | "voice" | "live";
 
 export function demoMode(): boolean {
   return process.env.POLTY_PUBLIC_DEMO === "1";
@@ -29,8 +31,17 @@ export function demoLimits() {
     agentPerDay: num("DEMO_TURNS_PER_DAY", 300),
     voicePerHour: num("DEMO_VOICE_PER_HOUR", 60),
     voicePerDay: num("DEMO_VOICE_PER_DAY", 600),
+    livePerHour: num("DEMO_LIVE_PER_HOUR", 3),
+    livePerDay: num("DEMO_LIVE_PER_DAY", 30),
+    liveMaxSeconds: num("DEMO_LIVE_MAX_SECONDS", 180),
   };
 }
+
+const PER_KIND = {
+  agent: { hour: "agentPerHour", day: "agentPerDay", visitorMsg: "Polty's public demo allows a limited number of requests per visitor each hour", siteMsg: "Polty's public demo has used today's budget" },
+  voice: { hour: "voicePerHour", day: "voicePerDay", visitorMsg: "The demo's voice features are limited per visitor each hour", siteMsg: "The demo's voice features have used today's budget" },
+  live: { hour: "livePerHour", day: "livePerDay", visitorMsg: "Live voice on the public demo is limited to a few sessions per visitor each hour", siteMsg: "Live voice on the public demo has used today's sessions" },
+} as const;
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -83,26 +94,24 @@ export function takeDemoAllowance(req: Request, kind: LimitKind, now = Date.now(
   if (!demoMode()) return null;
   sweep(now);
   const l = demoLimits();
-  const perHour = kind === "agent" ? l.agentPerHour : l.voicePerHour;
-  const perDay = kind === "agent" ? l.agentPerDay : l.voicePerDay;
+  const k = PER_KIND[kind];
   const visitor = bucket(`${kind}:ip:${clientIp(req)}`, HOUR, now);
   const site = bucket(`${kind}:site`, DAY, now);
-  const what = kind === "agent" ? "Polty's public demo" : "The demo's voice features";
 
-  if (visitor.count >= perHour) {
+  if (visitor.count >= l[k.hour]) {
     const retryAfterS = Math.ceil((visitor.resetAt - now) / 1000);
     return {
       scope: "visitor",
       retryAfterS,
-      message: `${what} ${kind === "agent" ? "allows a limited number of requests" : "are limited"} per visitor each hour to keep costs down. Try again in about ${minutes(retryAfterS)} min, or run Polty with your own key (see /setup).`,
+      message: `${k.visitorMsg} to keep costs down. Try again in about ${minutes(retryAfterS)} min, or run Polty with your own key (see /setup).`,
     };
   }
-  if (site.count >= perDay) {
+  if (site.count >= l[k.day]) {
     const retryAfterS = Math.ceil((site.resetAt - now) / 1000);
     return {
       scope: "site",
       retryAfterS,
-      message: `${what} ${kind === "agent" ? "has" : "have"} used today's budget. It resets within ${Math.ceil(retryAfterS / 3600)} h, or you can run Polty with your own key (see /setup).`,
+      message: `${k.siteMsg}. It resets within ${Math.ceil(retryAfterS / 3600)} h, or you can run Polty with your own key (see /setup).`,
     };
   }
   visitor.count++;

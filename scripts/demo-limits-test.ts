@@ -1,7 +1,7 @@
 // Offline checks for the public-demo limiter (src/lib/demo/limits.ts). No network, no API keys.
 // Run: corepack pnpm exec tsx scripts/demo-limits-test.ts
 import assert from "node:assert/strict";
-import { clientIp, demoMode, resetDemoLimits, takeDemoAllowance } from "../src/lib/demo/limits";
+import { clientIp, demoLimits, demoMode, resetDemoLimits, takeDemoAllowance } from "../src/lib/demo/limits";
 
 let n = 0;
 const check = (ok: unknown, label: string) => {
@@ -32,5 +32,16 @@ check(s?.scope === "site", "a new visitor is refused once the site's daily budge
 check(takeDemoAllowance(req("2.2.2.2"), "voice", t0) === null, "voice has its own separate budget");
 check(takeDemoAllowance(req("2.2.2.2"), "agent", t0 + 61 * 60 * 1000)?.scope === "site", "after an hour the visitor limit resets but the daily site cap still holds");
 check(takeDemoAllowance(req("2.2.2.2"), "agent", t0 + 25 * 60 * 60 * 1000) === null, "after a day everything resets");
+
+// Live voice (ElevenLabs agent, billed per minute): a few sessions per visitor, each time-capped.
+resetDemoLimits();
+check(demoLimits().livePerHour === 3 && demoLimits().liveMaxSeconds === 180, "Live voice defaults: 3 sessions per visitor per hour, 3 minutes each");
+for (let i = 0; i < 3; i++) assert.equal(takeDemoAllowance(req("5.5.5.5"), "live", t0), null);
+const lv = takeDemoAllowance(req("5.5.5.5"), "live", t0);
+check(lv?.scope === "visitor" && /Live voice/.test(lv.message) && /\/setup/.test(lv.message), "4th Live session in an hour is refused, with a pointer to /setup");
+check(takeDemoAllowance(req("5.5.5.5"), "voice", t0) === null, "tap-to-talk voice still works after Live sessions run out");
+process.env.DEMO_LIVE_MAX_SECONDS = "90";
+check(demoLimits().liveMaxSeconds === 90, "session length is configurable with DEMO_LIVE_MAX_SECONDS");
+delete process.env.DEMO_LIVE_MAX_SECONDS;
 
 console.log(`\n${n} demo-limit checks passed`);

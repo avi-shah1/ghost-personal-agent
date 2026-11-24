@@ -39,7 +39,7 @@
 - `/media/nature.mp4` and `.jpg` 404 locally: the background video is not in the repo (pre-existing).
 
 ## Plan
-1. Setup page with Claude, Google Workspace, Exa, ElevenLabs, YouTube cards. **Done 2026-11-24** (not committed).
+1. Setup page with Claude, Google Workspace, Exa, ElevenLabs, YouTube cards. **Done 2026-11-24.**
 2. Same guides as Markdown in `docs/setup/` + README link; add Kernel / AgentMail / Executor cards.
 3. Deploy as ONE Docker service (user chose: no Vercel; Vercel can't run `server.ts`'s coordinator).
    Guide: `docs/deploy-public-demo.md`; `railway.json` for Railway (recommended). Measured locally in
@@ -47,4 +47,11 @@
    Public-demo protections: `POLTY_PUBLIC_DEMO=1` → `src/lib/demo/limits.ts` (Fast brain only, per-IP
    hourly + site daily turn limits on `/api/agent`, voice route limits). Test: `pnpm demo:test` (offline).
    Real cost cap = Anthropic workspace spend limit on a dedicated demo key.
+   **Live 2026-11-24:** https://ghost-agents-production-62dd7a4d.up.railway.app (Railway, auto-deploys on
+   push to `polty-hackathon`). Railway's builder rejects BuildKit `--mount=type=secret` (cache mounts only).
+- Voice: with `ELEVENLABS_API_KEY`, a mic tap starts **Live mode** (`src/lib/voice/convai.ts`, an
+  ElevenLabs agent billed per minute, created by `src/lib/agent/convai-agent.ts`); if that fails it falls
+  back to tap-to-talk (Scribe STT + ElevenLabs TTS). Without the key: browser voice + Chrome speech
+  recognition, one sentence per tap. Demo caps Live sessions (`DEMO_LIVE_*`, separate "(public demo)"
+  agent with `max_duration_seconds`). Offline tests: `pnpm demo:test` (stubs fetch, no ElevenLabs calls).
 - Undecided: which branch becomes the fork's default.

@@ -101,7 +101,16 @@ class Listener {
   private interim = "";
   private sendTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // The Live session this listener started (loaded lazily), to notice when it ends on its own.
+  private liveSession: { active: boolean } | null = null;
+
   get listening() {
+    // A Live session can end without us (time limit, network drop): then we're not listening anymore,
+    // so the next tap starts a new session instead of "ending" one that's already gone.
+    if (this.live && this.liveSession && !this.liveSession.active) {
+      this.live = false;
+      this.active = false;
+    }
     return this.active;
   }
 
@@ -133,6 +142,7 @@ class Listener {
       this.live = true;
       this.active = true;
       void import("./convai").then(async ({ live }) => {
+        this.liveSession = live;
         const ok = await live.start();
         if (!ok) {
           this.live = false;

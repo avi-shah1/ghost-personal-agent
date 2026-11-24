@@ -19,10 +19,18 @@ A public demo runs on **your** Anthropic key, so anyone who opens the link spend
    - Polty always uses the Fast brain (Claude Haiku); the Deep toggle is disabled,
    - each visitor gets a limited number of model requests per hour (`DEMO_TURNS_PER_HOUR`, default 40),
    - the whole site gets a daily budget (`DEMO_TURNS_PER_DAY`, default 300),
-   - the ElevenLabs voice routes get their own limits (`DEMO_VOICE_PER_HOUR` 60, `DEMO_VOICE_PER_DAY` 600).
+   - the ElevenLabs voice routes get their own limits (`DEMO_VOICE_PER_HOUR` 60, `DEMO_VOICE_PER_DAY` 600),
+   - **Live voice** (tap the mic once, then just talk) runs on an ElevenLabs agent billed per minute,
+     so each visitor gets `DEMO_LIVE_PER_HOUR` sessions (default 3), the site gets `DEMO_LIVE_PER_DAY`
+     (default 30), and each session ends after `DEMO_LIVE_MAX_SECONDS` (default 180). ElevenLabs
+     itself enforces the length too, on a separate agent named "Polty · GHOST (public demo)".
+     When a visitor's Live sessions run out, the mic falls back to tap-to-talk.
 
    One question can use several requests when Polty calls tools. Counters live in memory and reset
-   when the server restarts; the Anthropic spend limit is what actually caps cost.
+   when the server restarts; the Anthropic spend limit and your ElevenLabs plan's credits are what
+   actually cap cost.
+4. If you add ElevenLabs: in your ElevenLabs subscription settings, check that **usage-based
+   billing** is off, so running out of credits pauses voice instead of charging more.
 
 ## Environment variables on the host
 
@@ -33,7 +41,8 @@ A public demo runs on **your** Anthropic key, so anyone who opens the link spend
 | `DEMO_TURNS_PER_HOUR`, `DEMO_TURNS_PER_DAY` | Optional | Tighten or loosen the limits. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **No** | Visitors would connect *their* Gmail and Calendar to *your* server. |
 | `EXA_API_KEY`, `YOUTUBE_API_KEY` | Not at first | Their API routes aren't rate-limited by demo mode; strangers could use up your quota. |
-| `ELEVENLABS_API_KEY` | Optional | Visitors get the natural voice, limited per visitor; without it Polty uses the browser's voice. |
+| `ELEVENLABS_API_KEY` | Recommended | The natural voice and always-listening Live mode, limited as above. Without it Polty uses the browser's robotic voice and Chrome's speech recognition, one sentence per mic tap. |
+| `ELEVENLABS_AGENT_ID` | **No** | Ignored in demo mode: the demo manages its own agent so the session cap stays on. |
 | `DATABASE_URL` | Optional | Without it the embedded database starts empty on each deploy, which is fine for a demo. |
 
 Never put keys in the repo. Hosts store them as encrypted variables.
@@ -46,7 +55,8 @@ Railway bills for actual usage instead; check [railway.com/pricing](https://rail
 1. Sign up at [railway.com](https://railway.com) with GitHub.
 2. **New Project → Deploy from GitHub repo**, pick this repository, then in the service's
    **Settings → Source** choose the branch to deploy (e.g. `polty-hackathon`).
-3. In **Variables**, add `ANTHROPIC_API_KEY` and `POLTY_PUBLIC_DEMO=1`.
+3. In **Variables**, add `ANTHROPIC_API_KEY` and `POLTY_PUBLIC_DEMO=1`, plus `ELEVENLABS_API_KEY`
+   for the natural voice and Live mode.
 4. In **Settings → Networking**, click **Generate Domain** to get a public `https://….up.railway.app` address.
 5. The first build takes several minutes. When it's live, open the address:
    - `/api/v1/health` should return `{"ok":true,...}`,
@@ -63,5 +73,5 @@ Every push to that branch redeploys automatically.
 ## Checking the protections locally
 
 ```sh
-pnpm exec tsx scripts/demo-limits-test.ts   # offline, no API calls
+pnpm demo:test   # offline, no API calls (limits + Live voice agent setup)
 ```
