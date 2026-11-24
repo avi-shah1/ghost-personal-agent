@@ -103,7 +103,7 @@ export async function POST(req: Request) {
 
 function describeError(err: unknown): { message: string; code: string } {
   if (err instanceof Anthropic.AuthenticationError) {
-    return { code: "auth", message: "Claude credentials are missing or invalid. Set ANTHROPIC_API_KEY in .env.local." };
+    return { code: "auth", message: "Claude credentials are missing or invalid. Set ANTHROPIC_API_KEY in .env.local (step-by-step guide at /setup)." };
   }
   if (err instanceof Anthropic.RateLimitError) return { code: "rate_limit", message: "Claude is rate limited — try again in a moment." };
   if (err instanceof Anthropic.BadRequestError) return { code: "bad_request", message: err.message };

@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { AnimatePresence, motion } from "motion/react";
 import { Blocks, Brain, KeyRound, Zap } from "lucide";
 import { useGhost } from "@/lib/store";
+import { INTEGRATION_IDS, isReady, useSetupStatus } from "@/lib/setup/status";
 import ConnectorsPanel from "@/components/connectors/ConnectorsPanel";
 import { WorkspaceToggle } from "@/components/workspace/Workspace";
 import { Icon, type IconNode } from "@/components/ui/Icon";
@@ -106,7 +107,34 @@ export function TopBar() {
       >
         Devices
       </Link>
+      <SetupButton />
     </header>
+  );
+}
+
+/**
+ * The way into /setup. Stands out (filled, with progress) while integrations are missing; once
+ * everything is set up it becomes a quiet chip like its neighbours.
+ */
+function SetupButton() {
+  const { status } = useSetupStatus();
+  const ready = INTEGRATION_IDS.filter((id) => isReady(id, status)).length;
+  const done = !!status && ready === INTEGRATION_IDS.length;
+  const noBrain = !!status && !status.anthropic.configured;
+  return (
+    <Link
+      href="/setup"
+      onClick={() => haptic()}
+      aria-label={status ? `Set up integrations: ${ready} of ${INTEGRATION_IDS.length} ready` : "Set up integrations"}
+      className={clsx(
+        "pointer-events-auto inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full pl-3 pr-3.5 text-caption font-medium transition-[transform,background-color,color] duration-150 active:scale-[0.97]",
+        done ? "ghost-chip text-fg-2 hover:bg-white/90 hover:text-fg" : noBrain ? "bg-mint text-fg-inverse shadow-pop" : "bg-fg text-fg-inverse shadow-pop hover:bg-fg/90",
+      )}
+    >
+      <Icon icon={KeyRound} size={14} />
+      Set up
+      {status && !done && <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-micro tabular-nums max-sm:hidden">{ready}/{INTEGRATION_IDS.length}</span>}
+    </Link>
   );
 }
 
