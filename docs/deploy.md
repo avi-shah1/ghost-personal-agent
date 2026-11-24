@@ -64,9 +64,9 @@ Without `DATABASE_URL`, both live on the `ghost_data` volume.
 
 ```bash
 fly deploy
-# Optional Interfere build integration (needs both keys; the secret one is a BuildKit secret):
-fly deploy --build-arg INTERFERE_PUBLIC_KEY=interfere_public_us_... \
-           --build-secret INTERFERE_API_KEY=interfere_secret_us_...
+# Optional Interfere runtime monitoring (the Dockerfile no longer takes the secret build key,
+# so source maps aren't uploaded):
+fly deploy --build-arg INTERFERE_PUBLIC_KEY=interfere_public_us_...
 
 fly status          # machine started, health check passing
 fly logs            # "> GHOST ready on http://localhost:3000 (production)"

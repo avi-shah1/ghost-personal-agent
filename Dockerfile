@@ -22,17 +22,15 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 # NEXT_PUBLIC_* values are inlined into the browser bundle at build time.
 ARG NEXT_PUBLIC_PUBLIC_ORIGIN=""
-# Optional Interfere: the public key is safe to expose; the secret key (needed by production
-# builds to publish release metadata/source maps) is a BuildKit secret, never a layer:
-#   fly deploy --build-arg INTERFERE_PUBLIC_KEY=... --build-secret INTERFERE_API_KEY=...
+# Optional Interfere runtime monitoring: the public key is safe to expose. The build never takes
+# the secret INTERFERE_API_KEY (source-map upload): BuildKit secret mounts aren't supported by
+# every builder (Railway rejects them), and a secret must never become an image layer.
 ARG INTERFERE_PUBLIC_KEY=""
 ARG INTERFERE_ENVIRONMENT="production"
 ENV NEXT_PUBLIC_PUBLIC_ORIGIN=$NEXT_PUBLIC_PUBLIC_ORIGIN \
     INTERFERE_PUBLIC_KEY=$INTERFERE_PUBLIC_KEY \
     INTERFERE_ENVIRONMENT=$INTERFERE_ENVIRONMENT
-RUN --mount=type=secret,id=INTERFERE_API_KEY \
-    INTERFERE_API_KEY="$(cat /run/secrets/INTERFERE_API_KEY 2>/dev/null || true)" pnpm build \
-    && rm -rf .next/cache
+RUN pnpm build && rm -rf .next/cache
 
 # ---- runtime ----
 FROM base AS runner
