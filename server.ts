@@ -13,6 +13,7 @@ loadEnv({ path: ".env", quiet: true });
 import http from "node:http";
 import next from "next";
 import { startCoordinator } from "./src/lib/ghost/server";
+import { keyReport } from "./src/lib/setup/key-report";
 
 const dev = process.env.NODE_ENV !== "production";
 const port = Number.parseInt(process.env.PORT || "3000", 10);
@@ -54,6 +55,7 @@ async function main() {
   server.listen(port, hostname, () => {
     console.log(`> GHOST ready on http://localhost:${port} (${dev ? "development" : "production"}) — listening on ${hostname}:${port}`);
     console.log(`> device channel ws://localhost:${port}/v1/device-channel · MCP http://localhost:${port}/mcp`);
+    for (const line of keyReport()) console.log(line);
   });
 
   let stopping = false;
