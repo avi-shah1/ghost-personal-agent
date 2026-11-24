@@ -1,31 +1,88 @@
 <div align="center">
 
-# GHOST
+# GHOST · Polty
 
 **Your agent knows what to do. GHOST finds it the eyes, hands and instruments to do it.**
+
+Meet **Polty**, the poltergeist: a voice agent with no body of its own that temporarily possesses
+devices, with permission, and shows you what it sees on a generative canvas.
+
+**[Try the live demo →](https://ghost-agents-production-62dd7a4d.up.railway.app)** ·
+[Run it with your own keys](#run-it-yourself) ·
+[Setup guide](https://ghost-agents-production-62dd7a4d.up.railway.app/setup)
+
+</div>
+
+<!-- Demo video: in GitHub's web editor, drag the .mp4 into this file to upload it, then keep the
+     link it creates right here. -->
+
+---
+
+## Try it
+
+The [live demo](https://ghost-agents-production-62dd7a4d.up.railway.app) runs on the maintainer's
+keys, so it's limited to keep costs down. It works best in Chrome.
+
+| On the demo | |
+| --- | --- |
+| **Talk to Polty** | Tap the mic once and just talk: Live voice keeps listening (up to 3 minutes per session, a few sessions per hour). Or start typing anywhere. |
+| **Live traffic cameras** | "Show me the Bay Bridge, live": a Caltrans stream with real-time object tracking that runs in your browser. |
+| **Tides, weather, news, transit, flights** | "How high is the tide in SF?" NOAA readings come with the station and measurement time. |
+| **Needs your own keys** | Gmail & Calendar, web search, YouTube search, and the Deep brain (Claude Opus). |
+
+Each visitor gets a limited number of requests per hour, and the demo always uses the Fast brain
+(Claude Haiku 4.5). For everything, without limits, run it yourself.
+
+## Run it yourself
+
+You need Node 22+ and pnpm (on Windows, run pnpm as `corepack pnpm`).
+
+```bash
+git clone -b polty-hackathon https://github.com/avi-shah1/ghost-personal-agent
+cd ghost-personal-agent
+pnpm install
+cp .env.example .env.local     # PowerShell: Copy-Item .env.example .env.local
+# put your ANTHROPIC_API_KEY in .env.local
+pnpm dev                       # http://localhost:3000
+```
+
+Then open **http://localhost:3000/setup**. It shows what's switched on, and has a step-by-step guide
+for each integration with what it unlocks and what it costs:
+
+| Integration | Unlocks | Variables in `.env.local` |
+| --- | --- | --- |
+| **Claude** (required) | Polty's brain: Fast (Haiku 4.5) and Deep (Opus 5.5) | `ANTHROPIC_API_KEY` |
+| **ElevenLabs** | Natural voice and always-listening Live mode | `ELEVENLABS_API_KEY` |
+| **Exa** | Web search and reading pages | `EXA_API_KEY` |
+| **Google Workspace** | Gmail, Calendar, Drive and Contacts | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| **YouTube** | Video search (Exa also works) | `YOUTUBE_API_KEY` |
+
+Your keys stay in `.env.local`, which git ignores. With no database configured, GHOST uses embedded
+Postgres (PGlite) in `.ghost/`, so no extra account is needed.
+
+**Host your own public demo:** [docs/deploy-public-demo.md](docs/deploy-public-demo.md). It runs as
+one Docker service (Railway recommended; Vercel can't run the coordinator), and
+`POLTY_PUBLIC_DEMO=1` turns on per-visitor limits so strangers can't run up your bills.
+
+---
+
+## What GHOST does
 
 An open-source network for personal agents to borrow physical capabilities — phone cameras and
 microphones, Bluetooth lights, USB microcontrollers, Raspberry Pi actuators, smart-home devices,
 public traffic cameras and tide stations — through one lifecycle:
 **discover → negotiate → lease → act → observe → remember → give it back.**
 
-Meet **Polty**, the poltergeist: a voice agent with no body of its own that temporarily possesses
-devices, with permission, and shows you what it sees on a generative canvas.
-
-</div>
-
----
-
-## What it does
-
 | You say | What happens |
 | --- | --- |
-| "Find a live camera on the Bay Bridge and track the trucks." | Polty searches 756 Caltrans cameras, opens a live HLS stream on the canvas, runs a real-time object detector (D-FINE-N, Apache-2.0; YOLOv10n optional) **in your browser**, locks onto a truck and auto-zooms a follow-cam. |
+| "Find a live camera on the Bay Bridge and track the trucks." | Polty searches hundreds of Caltrans cameras, opens a live HLS stream on the canvas, runs a real-time object detector (D-FINE-N, Apache-2.0; YOLOv10n optional) **in your browser**, locks onto a truck and auto-zooms a follow-cam. |
 | "Pair my phone so you can see and hear through it." | A QR code appears. Your phone opens `/join`, you confirm it on the laptop, and the phone becomes a body: camera, microphone, speaker, screen, haptics, motion, location, torch. |
 | "What's on my Wi-Fi? Turn the lights purple." | A radar scans mDNS / SSDP / Kasa discovery, fingerprints Shelly, WLED, Hue, Kasa, Elgato, Tasmota, Roku and Home Assistant, publishes what it can drive, and switches them. |
 | "Connect my Arduino and wave the servo." | You click once (browsers require it), Web Serial opens, the board announces its capabilities over the GHOST serial protocol, Polty moves the servo. Same for Bluetooth LE lights and heart-rate straps. |
 | "Did I leave my keys at the workshop? You can spend up to $1." | Polty finds a camera whose view is blocked, discovers another owner's actuator that lifts the cover, negotiates terms with that owner's host agent, pays a **test** payment within budget, lifts the cover, takes a new photo — and says "I can't verify that" when the evidence doesn't support an answer. |
 | "How high is the tide in San Francisco?" | A NOAA station reading with its datum, quality flag and real measurement time. Predictions are never presented as measurements. |
+
+The hardware rows need your own devices, so run Polty locally for those.
 
 Every result on the canvas carries provenance: who operates the device, when the world was actually
 captured (or "unknown"), and whether a physical action was **verified**, merely **acknowledged**, or
@@ -52,7 +109,7 @@ captured (or "unknown"), and whether a physical action was **verified**, merely 
 
 ```mermaid
 flowchart LR
-    U[You: voice + canvas] --> P[Polty agent loop<br/>Claude Opus 5.5]
+    U[You: voice + canvas] --> P[Polty agent loop<br/>Claude Haiku 4.5 / Opus 5.5]
     P -- tools --> G[GHOST coordinator<br/>Hono · leases · ledger · memory]
     X[Any MCP client] --> M[/mcp/] --> G
     X -. via .-> E[Executor gateway] -.-> M
@@ -70,6 +127,7 @@ flowchart LR
 - `src/lib/ghost/` — contracts, coordinator (catalog, leases, invocations, pairing, ledger, memory),
   adapters (Caltrans, NOAA, LAN smart home, Kernel).
 - `src/lib/agent/` — Polty's tools, system prompt and browser-side agent loop.
+- `src/lib/voice/` — Live voice (ElevenLabs agent), speech-to-text and Polty's voice.
 - `src/lib/connector/` — browser connector SDK and drivers (camera, mic, speaker, display, haptics,
   motion, location, battery, Web Bluetooth, Web Serial, WebRTC).
 - `src/lib/vision/` — in-browser object detection (Web Worker + ONNX Runtime Web/WebGPU), tracker
@@ -77,25 +135,19 @@ flowchart LR
 - `src/mastra/` — Mastra workflows for multi-step physical missions with a verification checkpoint.
 - `connectors/raspberry/` — Python Pi connector. `connectors/arduino/` — GHOST serial sketch.
 
-## Quick start
-
-```bash
-pnpm install
-cp .env.example .env.local     # add a Claude credential (see below); everything else is optional
-pnpm dev                       # http://localhost:3000
-```
-
-With no database configured GHOST uses embedded Postgres (PGlite) in `.ghost/` — no account needed.
+## Configuration notes
 
 **Claude.** Either `ANTHROPIC_API_KEY`, or route through Neon AI Gateway with
-`NEON_AI_GATEWAY_BASE_URL` + `NEON_AI_GATEWAY_TOKEN`. Default model: `claude-opus-5-5`
-(`GHOST_MODEL`, `GHOST_EFFORT=low` for snappy voice).
+`NEON_AI_GATEWAY_BASE_URL` + `NEON_AI_GATEWAY_TOKEN`. The top bar switches between Fast
+(`GHOST_FAST_MODEL`, default `claude-haiku-4-5`) and Deep (`GHOST_MODEL`, default `claude-opus-5-5`);
+`GHOST_EFFORT=low` keeps voice snappy.
 
-**Phones** need a trusted HTTPS origin for the camera. Deploy to Fly.io ([docs/deploy.md](docs/deploy.md))
-or use a tunnel, and set `NEXT_PUBLIC_PUBLIC_ORIGIN`.
+**Voice.** With `ELEVENLABS_API_KEY`, one tap on the mic starts Live mode: an always-listening
+ElevenLabs agent with Polty's voice and the same tools. Tap again to end it. Without the key, Polty
+uses Chrome/Edge speech recognition (one sentence per tap) and the browser's built-in voice.
 
-**Voice.** Chrome/Edge speech recognition for input; ElevenLabs (`ELEVENLABS_API_KEY`) for Polty's
-voice, falling back to the browser voice. Hold <kbd>Space</kbd> or click Polty to talk.
+**Phones** need a trusted HTTPS origin for the camera. Deploy it ([docs/deploy-public-demo.md](docs/deploy-public-demo.md),
+or Fly.io with [docs/deploy.md](docs/deploy.md)) or use a tunnel, and set `NEXT_PUBLIC_PUBLIC_ORIGIN`.
 
 ### Connect an MCP client
 
@@ -114,7 +166,7 @@ Each integration does a job in the product and is optional — the core runs wit
 
 | Partner | Role in GHOST | Env |
 | --- | --- | --- |
-| **Neon** | Postgres for catalog, leases, ledger and memory; **Neon AI Gateway** serves Claude Opus 5.5 to Polty | `DATABASE_URL`, `NEON_AI_GATEWAY_BASE_URL`, `NEON_AI_GATEWAY_TOKEN` |
+| **Neon** | Postgres for catalog, leases, ledger and memory; **Neon AI Gateway** serves Claude to Polty | `DATABASE_URL`, `NEON_AI_GATEWAY_BASE_URL`, `NEON_AI_GATEWAY_TOKEN` |
 | **Mastra** | Workflows for multi-step physical missions (photo → actuate → photo → suspend for verdict → release → remember), traced in Mastra Studio | none (`pnpm mastra:dev`) |
 | **Fly.io** | Always-on HTTPS host so phones can pair and devices keep their WebSockets | `fly.toml`, `Dockerfile` |
 | **Exa** | Finds public webcams and data sources that aren't in the catalog yet | `EXA_API_KEY` |
@@ -151,6 +203,7 @@ See [docs/device-memory.md](docs/device-memory.md) for setup, TV support and per
 
 ```bash
 pnpm coord:smoke          # 75 coordinator checks: leases, exclusivity, budget, expiry, revoke, MCP…
+pnpm demo:test            # public-demo limits and Live voice agent setup; offline, no API calls
 pnpm devices:memory-test  # connection memory survives a disk-backed coordinator restart; simulated hardware
 pnpm exec tsx scripts/microphone-selection-test.ts  # exact audio-input selection; browser API test doubles
 pnpm infra:mission-test   # Mastra mission end-to-end against a real coordinator
