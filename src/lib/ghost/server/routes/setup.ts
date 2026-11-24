@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import { getPrincipalOptional } from "../auth";
 import { getTokens, googleConfigured, redirectUri } from "../google/oauth";
 import { env } from "../partners/common";
+import { demoLimits, demoMode } from "../../../demo/limits";
 
 /**
  * GET /api/v1/setup/status — which integrations this server has keys for, for the /setup page.
@@ -30,6 +31,7 @@ export function mountSetupRoutes(app: Hono) {
       exa: { configured: !!env("EXA_API_KEY") },
       elevenlabs: { configured: !!env("ELEVENLABS_API_KEY") },
       youtube: { configured: !!env("YOUTUBE_API_KEY") },
+      demo: { enabled: demoMode(), turns_per_hour: demoLimits().agentPerHour },
     });
   });
 }

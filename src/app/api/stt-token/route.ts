@@ -1,3 +1,5 @@
+import { limitResponse, takeDemoAllowance } from "@/lib/demo/limits";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -6,9 +8,11 @@ export const dynamic = "force-dynamic";
  * audio straight to realtime Scribe (live partial captions, final transcript ~0.5 s after you stop).
  * The API key never leaves the server.
  */
-export async function POST() {
+export async function POST(req: Request) {
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) return Response.json({ error: "ElevenLabs not configured" }, { status: 503 });
+  const hit = takeDemoAllowance(req, "voice");
+  if (hit) return limitResponse(hit);
   const r = await fetch("https://api.elevenlabs.io/v1/single-use-token/realtime_scribe", {
     method: "POST",
     headers: { "xi-api-key": key },

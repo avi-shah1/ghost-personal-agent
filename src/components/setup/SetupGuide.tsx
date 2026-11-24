@@ -111,8 +111,10 @@ export default function SetupGuide() {
 
         {hosted && (
           <Notice tone="info">
-            You’re viewing a hosted copy, so it uses whatever keys its owner added. To use your own accounts, run Polty on your computer: follow{" "}
-            <b className="font-medium text-fg">Before you start</b> below, or see the <A href={REPO_URL}>GitHub repo</A>.
+            You’re viewing a hosted copy, so it uses whatever keys its owner added
+            {status?.demo?.enabled ? " (as a public demo: Fast brain only, with a per-visitor hourly limit)" : ""}. To use your own accounts
+            without limits, run Polty on your computer: follow <b className="font-medium text-fg">Before you start</b> below, or see the{" "}
+            <A href={REPO_URL}>GitHub repo</A>.
           </Notice>
         )}
         {error && (

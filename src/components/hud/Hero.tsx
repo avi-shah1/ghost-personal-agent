@@ -103,6 +103,17 @@ export function Hero() {
             </motion.p>
           )}
 
+          {status?.demo?.enabled && brain && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: duration.deliberate }}
+              className="mt-2 text-caption text-fg-3"
+            >
+              Public demo: Fast brain only, limited requests per visitor each hour.
+            </motion.p>
+          )}
+
           {status && (
             <motion.ul
               aria-label="What Polty can do"

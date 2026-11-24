@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SYSTEM_PROMPT } from "@/lib/agent/prompt";
 import { TOOL_DEFS } from "@/lib/agent/tools";
 import { createClaudeClient } from "@/lib/agent/claude";
+import { demoMode, takeDemoAllowance } from "@/lib/demo/limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,8 +32,13 @@ export async function POST(req: Request) {
     return Response.json({ error: "messages required" }, { status: 400 });
   }
 
+  // Public demo (POLTY_PUBLIC_DEMO=1): per-visitor and daily turn limits, Fast brain only.
+  const hit = takeDemoAllowance(req, "agent");
+  if (hit) return sse([{ t: "error", message: hit.message, code: "demo_limit" }]);
+  const demo = demoMode();
+
   // Two brains: "fast" (default for voice) and "deep" (multi-step physical tasks).
-  const brain = body.brain === "deep" ? "deep" : "fast";
+  const brain = !demo && body.brain === "deep" ? "deep" : "fast";
   const model = brain === "deep" ? process.env.GHOST_MODEL || "claude-opus-5-5" : process.env.GHOST_FAST_MODEL || "claude-haiku-4-5";
   const effort = (process.env.GHOST_EFFORT || "low") as Effort;
   // Haiku 4.5 takes neither adaptive thinking nor `effort`; it runs without extended thinking.
@@ -53,7 +59,7 @@ export async function POST(req: Request) {
       try {
         const base = {
           model,
-          max_tokens: 16000,
+          max_tokens: demo ? 4096 : 16000,
           system: [{ type: "text" as const, text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" as const } }],
           tools: TOOL_DEFS.map((t) => ({ ...t, eager_input_streaming: true })),
           cache_control: { type: "ephemeral" as const },
@@ -91,14 +97,19 @@ export async function POST(req: Request) {
     },
   });
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-    },
-  });
+  return new Response(stream, { headers: SSE_HEADERS });
+}
+
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+  "X-Accel-Buffering": "no",
+};
+
+/** A complete SSE response made of fixed events (used to refuse a turn in the same wire format). */
+function sse(events: unknown[]): Response {
+  return new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), { headers: SSE_HEADERS });
 }
 
 function describeError(err: unknown): { message: string; code: string } {

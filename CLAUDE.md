@@ -41,7 +41,10 @@
 ## Plan
 1. Setup page with Claude, Google Workspace, Exa, ElevenLabs, YouTube cards. **Done 2026-11-24** (not committed).
 2. Same guides as Markdown in `docs/setup/` + README link; add Kernel / AgentMail / Executor cards.
-3. Deploy. The custom Node server (`server.ts`, WebSockets) does not run on Vercel as-is; Fly.io/Render
-   (Dockerfile + fly.toml exist) are easier. A public deploy needs spend protection (dedicated key, spend
-   limit, cheaper model, rate limit or passcode) because `/api/agent` uses the server's Claude key with no auth.
-- Undecided: which branch becomes the fork's default; whether to push `polty-hackathon`.
+3. Deploy as ONE Docker service (user chose: no Vercel; Vercel can't run `server.ts`'s coordinator).
+   Guide: `docs/deploy-public-demo.md`; `railway.json` for Railway (recommended). Measured locally in
+   production mode: ~390–440 MB RAM, so 512 MB plans (Render Free/Starter) are too tight.
+   Public-demo protections: `POLTY_PUBLIC_DEMO=1` → `src/lib/demo/limits.ts` (Fast brain only, per-IP
+   hourly + site daily turn limits on `/api/agent`, voice route limits). Test: `pnpm demo:test` (offline).
+   Real cost cap = Anthropic workspace spend limit on a dedicated demo key.
+- Undecided: which branch becomes the fork's default.

@@ -131,6 +131,13 @@ export async function sendToPolty(text: string, opts: { event?: boolean } = {}) 
           continue;
         }
         if (result.code === "aborted") return;
+        if (result.code === "demo_limit") {
+          // Public demo budget reached: say so plainly instead of "something went wrong".
+          S().set({ mood: "sleepy", caption: { who: "polty", text: result.error } });
+          updateAssistantUi(asstId, (m) => ({ ...m, text: result.error ?? "" }));
+          S().addTrace({ kind: "event", title: "Demo limit", detail: result.error });
+          break;
+        }
         throw new Error(result.error);
       }
       streamRetries = 0;

@@ -23,6 +23,8 @@ export interface SetupStatus {
   exa: { configured: boolean };
   elevenlabs: { configured: boolean };
   youtube: { configured: boolean };
+  /** Present when the server runs as a public demo on its owner's keys (POLTY_PUBLIC_DEMO=1). */
+  demo?: { enabled: boolean; turns_per_hour: number };
 }
 
 export type IntegrationState = "ready" | "connect" | "required" | "missing";

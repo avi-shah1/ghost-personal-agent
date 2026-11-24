@@ -141,6 +141,7 @@ function SetupButton() {
 /** Which Claude drives Polty: Haiku for snappy replies, Opus for multi-step tasks. */
 function BrainToggle() {
   const brain = useGhost((s) => s.brain);
+  const demo = !!useSetupStatus().status?.demo?.enabled;
   const opts: {
     id: "fast" | "deep";
     label: string;
@@ -163,21 +164,25 @@ function BrainToggle() {
   return (
     <div role="radiogroup" aria-label="Polty's brain" className="ghost-chip pointer-events-auto relative flex h-10 items-center gap-0.5 rounded-full p-1">
       {opts.map((o) => {
-        const on = brain === o.id;
+        // On the public demo the server only runs the Fast brain, so show that honestly.
+        const locked = demo && o.id === "deep";
+        const on = (demo ? "fast" : brain) === o.id;
         return (
           <button
             key={o.id}
             role="radio"
             aria-checked={on}
-            title={o.title}
+            aria-disabled={locked || undefined}
+            disabled={locked}
+            title={locked ? "Deep (Claude Opus) is off on this public demo to keep costs down" : o.title}
             onClick={() => {
-              if (on) return;
+              if (on || locked) return;
               haptic();
               useGhost.getState().set({ brain: o.id });
             }}
             className={clsx(
               "relative z-10 inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-caption font-medium transition-colors duration-150 min-[420px]:px-3",
-              on ? "text-fg-inverse" : "text-fg-2 hover:text-fg",
+              on ? "text-fg-inverse" : locked ? "cursor-not-allowed text-fg-3 opacity-50" : "text-fg-2 hover:text-fg",
             )}
           >
             {on && (

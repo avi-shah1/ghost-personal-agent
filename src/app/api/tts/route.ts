@@ -1,3 +1,5 @@
+import { limitResponse, takeDemoAllowance } from "@/lib/demo/limits";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) return Response.json({ error: "ElevenLabs not configured" }, { status: 503 });
+  const hit = takeDemoAllowance(req, "voice");
+  if (hit) return limitResponse(hit);
 
   let text = "";
   try {
